@@ -1,4 +1,8 @@
---ex 3
+-- ex2
+alter table detailscommandes
+add CONSTRAINT fk_truc FOREIGN KEY (produitId) REFERENCES produits(produitId);
+
+-- ex 3
 Select DISTINCT nom, type 
 from (
     SELECT c.nom ,'client' as type
