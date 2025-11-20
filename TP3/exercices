@@ -38,13 +38,14 @@ INTERSECT
 (SELECT nom , nomContact , adresse, ville , Pays
     from fournisseurs
     )
+-- zx6
 
 
 -- ex7
 select e.nom, e.prenom
-from employes employeswhere not EXISTS(
+from employes e where not EXISTS(
 	select *
-    from commandes commandes
+    from commandes co
     join clients c on co.clientId = c.clientId
     WHERE co.responsableId = e.employeId
     and c.Pays = 'France');
@@ -63,7 +64,7 @@ where e.employeId not in(
 SELECT nom,prenom
 FROM employes
 except(Select e2.nom,e2.prenom
-       from employes e2 inner join commande co on co.responsableId = e2.employeId
+       from employes e2 inner join commandes co on co.responsableId = e2.employeId
        inner join clients c on co.clientId = c.clientId
        WHERE c.Pays = 'France');
        
@@ -73,6 +74,25 @@ Select e.nom , e.prenom
 from (commandes co inner join clients c on co.clientId = c.clientId and c.Pays ='France')
 RIGHT join employes e on co.responsablesId = e.employeId
 where co.commandeId is NULL;
-   
-    
-      
+
+-- onnez la requête SQL qui permet d’obtenir la liste des produits dont le prix est supérieur à
+-- la moyenne de leur catégorie : libelle et prix du produit, libelle de la catégorie, prix moyen de
+-- la catégorie (sans CTE)
+
+SELECT avg(p.prix) , p.libelle , c.libelle
+from produits p inner join categories c on p.categorieId = c.categorieId
+WHERE p.prix > (SELECT avg(pr.prix) from produits pr WHERE p.categorieId = pr.categorieId)
+
+
+-- ex9
+-- Donnez la requête SQL qui permet d’obtenir les 5 clients qui ont généré le plus de chiffre d'affaires ; trié par le total de leurs ventes décroissant : nom du client, nombre de commandes, total de leurs commandes 
+-- Remarque : LIMIT n permet de ne conserver que les n premières lignes du résultat de la requête
+
+SELECT c.nom ,count (DISTINCT co.commandeId) as nb, sum(dc.quantite*p.prix) as ca
+from clients c
+inner join commandes co on c.clientId = co.clientId
+inner join detailscommandes dc on co.commandeId = dc.commandeId
+inner join produits p on dc.produitId = p.produitId
+group by c.clientId, c.nom
+order by 3 desc
+limit 5;
