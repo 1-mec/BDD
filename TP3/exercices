@@ -1,0 +1,17 @@
+--ex 3
+Select DISTINCT nom, type 
+from (
+    SELECT c.nom ,'client' as type
+    from clients c
+    UNION ALL
+    
+    select t.nom , 'transporteur' as type
+    from transporteurs t
+    UNION ALL
+
+	SELECT f.nom , 'fournisseur' as type
+	from fournisseurs f
+)As type
+order by type ASC
+
+-- ex4
