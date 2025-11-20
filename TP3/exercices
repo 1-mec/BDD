@@ -7,11 +7,11 @@ Select DISTINCT nom, type
 from (
     SELECT c.nom ,'client' as type
     from clients c
-    UNION ALL
+    UNION
     
     select t.nom , 'transporteur' as type
     from transporteurs t
-    UNION ALL
+    UNION 
 
 	SELECT f.nom , 'fournisseur' as type
 	from fournisseurs f
