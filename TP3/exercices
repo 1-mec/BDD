@@ -15,3 +15,26 @@ from (
 order by type ASC
 
 -- ex4
+-- Donnez, en utilisant un opérateur ensembliste, la requête SQL qui permet d’obtenir la liste, triée par nom, des clients qui n'ont jamais commandé : nom, ville et pays du client
+
+SELECT nom , ville , Pays
+from clients
+WHERE clientId not in (
+    SELECT c.clientId
+    from commandes c
+    )
+order by nom asc;
+
+-- ex5
+-- Donnez deux requêtes SQL qui permettent d’obtenir la liste des clients qui sont aussi des fournisseurs (même nom, même nom de contact) : nom, nom du contact, adresse, ville, pays
+
+(SELECT c.nom , c.nomContact , c.adresse, c.ville , c.Pays
+from clients c)
+INTERSECT
+(SELECT nom , nomContact , adresse, ville , Pays
+    from fournisseurs
+    )
+   
+   
+    
+      
