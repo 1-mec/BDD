@@ -36,7 +36,7 @@ group by a.personneid , a.nom , a.prenom;
 -- 3b
 -- Écrivez la fonction stockée qui permet d'obtenir le nombre d'articles qu'un auteur a écrits. L'identifiant de l'auteur est passé en paramètre.
 delimiter $$
-create or replace FUNCTION compteArticle( IN IdAuteur int )
+create or replace FUNCTION compteArticle( IdAuteur int )
 RETURNS INT
 BEGIN
 	DECLARE cnt int;
@@ -189,3 +189,176 @@ END IF;
 END
 $$
 DELIMITER;
+
+-- 6 a
+DELIMITER $$
+CREATE OR REPLACE PROCEDURE Opti(
+    IN p_Nom VARCHAR(20),
+    IN p_Prenom VARCHAR(20), 
+    IN p_Email VARCHAR(20),
+    IN p_VilleId VARCHAR(20),
+    IN p_NoEmployeur VARCHAR(20),
+    IN p_Adresse VARCHAR(40)
+)
+BEGIN
+    DECLARE varNom VARCHAR(20);
+    DECLARE varAddr VARCHAR(40);
+    DECLARE varPrenom VARCHAR(20);
+    DECLARE varEmail VARCHAR(20);
+    DECLARE varVilleId VARCHAR(20);
+    DECLARE varNoEmployeur VARCHAR(20);
+    
+    -- Assign input parameters to variables (this seems to be your intent)
+    SET varNom = p_Nom;
+    SET varPrenom = p_Prenom;
+    SET varEmail = p_Email;
+    SET varVilleId = p_VilleId;
+    SET varNoEmployeur = p_NoEmployeur;
+    SET varAddr = p_Adresse;
+    
+    -- Insert using the variables
+    INSERT INTO participant (
+        personneid,
+        villeid, 
+        noemployeur, 
+        adresse, 
+        nom, 
+        prenom, 
+        email
+    ) VALUES (
+        LAST_INSERT_ID(),
+        varVilleId, 
+        varNoEmployeur, 
+        varAddr, 
+        varNom, 
+        varPrenom, 
+        varEmail
+    );
+    INSERT INTO personne (nom, prenom, email) 
+    VALUES (p_Nom, p_Prenom, p_Email);
+    
+END $$
+DELIMITER ;
+
+-- 6 b
+
+DELIMITER $$
+CREATE OR REPLACE PROCEDURE remplace(
+    IN p_Nom VARCHAR(20),
+    IN p_Prenom VARCHAR(20), 
+    IN p_Email VARCHAR(20)
+)
+BEGIN
+    DECLARE varNom VARCHAR(20);
+    DECLARE varPrenom VARCHAR(20);
+    DECLARE varEmail VARCHAR(20);
+    SET varNom = p_Nom;
+    SET varPrenom = p_Prenom;
+    SET varEmail = p_Email;
+    
+    Update participant
+    set 
+    nom = varNom, 
+    prenom = varPrenom, 
+    email = varEmail;
+    
+    UPDATE personne
+    set nom = varNom, prenom = varPrenom, email = varEmail;
+END $$
+DELIMITER ;
+
+-- 6 d 
+DELIMITER $$
+CREATE OR REPLACE PROCEDURE remplace(
+    IN p_PersonneId INT,
+    IN p_Nom VARCHAR(20),
+    IN p_Prenom VARCHAR(20), 
+    IN p_Email VARCHAR(20)
+)
+BEGIN
+    UPDATE personne
+    SET nom = p_Nom, prenom = p_Prenom, email = p_Email
+    WHERE personneid = p_PersonneId;
+    
+    UPDATE participant
+    SET nom = p_Nom, prenom = p_Prenom, email = p_Email
+    WHERE personneid = p_PersonneId;
+END $$
+DELIMITER ;
+
+-- 7 a
+alter TABLE auteur
+add COLUMN nbArt int DEFAULT 0,
+add CONSTRAINT ch_nbA CHECK (nbArt is not NULL);
+-- 7 b 
+
+DELIMITER $$ 
+CREATE or REPLACE TRIGGER verif_nbArt_ins
+before INSERT on rediger
+for each row
+begin 
+	declare verif int;
+    SELECT nbArt into verif
+    FROM auteur ;
+    set verif = verif + 1;
+	UPDATE auteur
+    set nbArt = verif;
+end $$
+
+CREATE or REPLACE TRIGGER verif_nbArt_del
+after DELETE on rediger
+for each row
+begin 
+	declare verif int DEFAULT 0;
+    UPDATE auteur
+    set nbArt = verif;
+end $$
+CREATE or REPLACE TRIGGER verif_nbArt_mod
+after modify on rediger
+for each row
+begin 
+
+IF OLD.auteurid != NEW.auteurid THEN
+declare verif int;
+    SELECT nbArt into verif
+    FROM auteur ;
+    set verif = verif - 1;
+UPDATE
+	auteur
+SET
+	nbArt = verif
+WHERE
+	personneid = OLD.auteurid;
+declare v int;
+    SELECT nbArt into v
+    FROM auteur ;
+    set v = v + 1;
+UPDATE
+	auteur
+SET
+	nbArt = v 
+WHERE
+	personneid = NEW.auteurid;
+END IF;
+END
+$$
+
+delimiter ;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
