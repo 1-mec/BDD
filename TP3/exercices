@@ -96,3 +96,22 @@ inner join produits p on dc.produitId = p.produitId
 group by c.clientId, c.nom
 order by 3 desc
 limit 5;
+
+-- ex 10
+select c.nom as 'clients obsolètes' , count(co.commandeId) as nbCommande, DATEDIFF(curdate(),co.dateCommande) as 'nbJours'
+from clients c inner join commandes co on c.clientId = co.clientId
+where DATEDIFF(curdate(),co.dateCommande) > 730
+group by c.nom
+order by 3,2,1 asc
+
+-- ex 11 . Donnez la requête SQL qui permet d’obtenir la liste des ventes totales 2025 par mois chaque catégorie : libellé de la catégorie, nom du mois, nom de l’année, montant vendu de la catégorie
+-- a) MONTHNAME(unedate) permet d’obtenir le nom du mois d’une date sur MySQL/MariaDB
+-- b) YEAR(unedate) permet d’obtenir l’année d’une date sur MySQL/MariaDB
+
+select (d.quantite * p.prix) as oui , p.libelle , MONTHNAME(co.dateCommande) , Year(co.dateCommande) 
+from detailscommandes d 
+inner join produits p on p.produitId = d.produitId  
+inner join commandes co on co.commandeId = d.commandeId
+where co.dateCommande between '2025-01-01' and '2025-12-31'
+group by  p.libelle 
+
