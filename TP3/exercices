@@ -115,3 +115,118 @@ inner join commandes co on co.commandeId = d.commandeId
 where co.dateCommande between '2025-01-01' and '2025-12-31'
 group by  p.libelle 
 
+tp3
+
+3.
+SELECT DISTINCT nom , 'client' as type
+from clients 
+union 
+SELECT DISTINCT nom , 'transporteur' as type 
+from transporteurs 
+union 
+SELECT DISTINCT nom , 'fournisseur' as type
+from fournisseurs
+order by nom , type asc
+
+
+4.
+select c.Pays , c.nom , c.ville
+from clients c
+WHERE c.clientId not in (SELECT co.clientId
+                    from commandes co)
+order by 2 asc;
+
+5.
+select c.nom , c.nomContact , c.adresse , c.ville , c.Pays
+from clients c
+where c.nom in (SELECT f.nom
+                     from fournisseurs f)
+
+6.
+
+11.
+SELECT 
+    cat.libelle AS 'Catégorie',
+    MONTHNAME(co.dateCommande) AS 'Mois', 
+    YEAR(co.dateCommande) AS 'Année',
+    SUM(dc.quantite * p.prix) AS 'Chiffre d\'affaires'
+FROM categories cat 
+INNER JOIN produits p ON cat.categorieId = p.categorieId 
+INNER JOIN detailsCommandes dc ON p.produitId = dc.produitId
+INNER JOIN commandes co ON co.commandeId = dc.commandeId
+WHERE YEAR(co.dateCommande) = 2025
+GROUP BY cat.libelle, MONTH(co.dateCommande), MONTHNAME(co.dateCommande), YEAR(co.dateCommande)
+ORDER BY YEAR(co.dateCommande), MONTH(co.dateCommande), cat.libelle;
+
+12.
+SELECT c.nom,DENSE_RANK() OVER(ORDER BY COUNT(*) DESC) AS 'rang' , co.dateCommande
+FROM clients c inner join commandes co on co.clientId = c.clientId
+GROUP BY c.nom ;
+
+
+13.
+SELECT c.nom, COUNT(*), row_number() OVER(ORDER BY c.nom DESC) AS 'rang' , co.dateCommande
+FROM clients c inner join commandes co on co.clientId = c.clientId
+GROUP BY c.nom ,co.dateCommande ;
+
+
+14.
+SELECT p.libelle, co.commandeId, co.dateCommande, dc.quantite, SUM(dc.quantite) OVER(PARTITION BY p.produitId ORDER BY co.commandeId)
+FROM commandes co INNER JOIN detailsCommandes dc ON dc.commandeId=co.commandeId INNER JOIN produits p ON p.produitId=dc.produitId
+ORDER BY p.libelle, co.commandeId
+
+15.
+SELECT 
+    c.nom,
+    c.clientId,
+    co.commandeId,
+    co.dateCommande,
+    -- Commande précédente du même client
+    LAG(co.dateCommande) OVER(
+        PARTITION BY c.clientId 
+        ORDER BY co.dateCommande
+    ) AS date_commande_precedente,
+    
+    -- Commande suivante du même client
+    LEAD(co.dateCommande) OVER(
+        PARTITION BY c.clientId 
+        ORDER BY co.dateCommande
+    ) AS date_commande_suivante,
+    
+    -- Différence avec la commande précédente
+    DATEDIFF(
+        co.dateCommande,
+        LAG(co.dateCommande) OVER(
+            PARTITION BY c.clientId 
+            ORDER BY co.dateCommande
+        )
+    ) AS jours_depuis_derniere_commande
+    
+FROM clients c 
+INNER JOIN commandes co ON co.clientId = c.clientId
+ORDER BY c.clientId, co.dateCommande;
+
+18.
+WITH total_clients AS (
+    SELECT 
+        c.nom, 
+        c.pays, 
+        SUM(dc.quantite * p.prix) AS montant_total
+    FROM produits p 
+    INNER JOIN detailsCommandes dc ON dc.produitId = p.produitId 
+    INNER JOIN commandes co ON co.commandeId = dc.commandeId 
+    INNER JOIN clients c ON c.clientId = co.clientId
+    GROUP BY c.nom, c.pays
+)
+
+SELECT 
+    nom, 
+    pays, 
+    montant_total,
+    (SELECT AVG(montant_total) FROM total_clients) AS moyenne_totale,
+    montant_total - (SELECT AVG(montant_total) FROM total_clients) AS difference
+FROM total_clients
+WHERE montant_total > (SELECT AVG(montant_total) FROM total_clients)
+ORDER BY montant_total DESC;
+
+
