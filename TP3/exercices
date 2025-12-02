@@ -115,35 +115,6 @@ inner join commandes co on co.commandeId = d.commandeId
 where co.dateCommande between '2025-01-01' and '2025-12-31'
 group by  p.libelle 
 
-tp3
-
-3.
-SELECT DISTINCT nom , 'client' as type
-from clients 
-union 
-SELECT DISTINCT nom , 'transporteur' as type 
-from transporteurs 
-union 
-SELECT DISTINCT nom , 'fournisseur' as type
-from fournisseurs
-order by nom , type asc
-
-
-4.
-select c.Pays , c.nom , c.ville
-from clients c
-WHERE c.clientId not in (SELECT co.clientId
-                    from commandes co)
-order by 2 asc;
-
-5.
-select c.nom , c.nomContact , c.adresse , c.ville , c.Pays
-from clients c
-where c.nom in (SELECT f.nom
-                     from fournisseurs f)
-
-6.
-
 11.
 SELECT 
     cat.libelle AS 'Catégorie',
@@ -229,4 +200,151 @@ FROM total_clients
 WHERE montant_total > (SELECT AVG(montant_total) FROM total_clients)
 ORDER BY montant_total DESC;
 
+19. 
+WITH les_clients AS (
+    SELECT 
+        Pays AS pays,
+        COUNT(*) AS nombre_clients
+    FROM clients
+    GROUP BY Pays
+),
+
+les_fournisseurs AS (
+    SELECT 
+        pays,
+        COUNT(*) AS nombre_fournisseurs
+    FROM fournisseurs  -- IMPORTANT : table fournisseurs !
+    GROUP BY pays
+),
+
+tous_pays AS (
+    SELECT pays FROM les_clients
+    UNION
+    SELECT pays FROM les_fournisseurs
+)
+
+SELECT 
+    tp.pays,
+    COALESCE(lc.nombre_clients, 0) + COALESCE(lf.nombre_fournisseurs, 0) AS nombre_tiers
+FROM tous_pays tp
+LEFT JOIN les_clients lc ON tp.pays = lc.pays
+LEFT JOIN les_fournisseurs lf ON tp.pays = lf.pays
+ORDER BY tp.pays;
+
+-- 20
+WITH produits_avec_moyenne AS (
+    SELECT 
+        p.libelle AS produit,
+        p.prix as prix,
+        c.libelle AS categorie,
+        AVG(p.prix) OVER (PARTITION BY c.categorieId) AS prix_moyen_categorie
+    FROM produits p
+    INNER JOIN categories c ON p.categorieId = c.categorieId
+)
+SELECT 
+    produit,
+    prix,
+    categorie,
+    prix_moyen_categorie
+FROM produits_avec_moyenne
+WHERE prix > prix_moyen_categorie
+ORDER BY categorie, prix DESC;
+
+-- 21 
+--  Donnez la requête SQL qui permet d’obtenir la liste des clients qui ont commandé plus de 5
+-- fois sur une durée d’au moins 3 ans : nom du client, nombre de commandes, date de la 1ere
+-- commande, date de la dernière commande, durée entre la 1ere et la derbière commande
+with cli as (
+    SELECT c.nom , COUNT(co.dateCommande) as cnt , MIN(co.dateCommande) le_min , MAX(co.dateCommande) le_max
+    from clients c inner join commandes co on c.clientId = co.clientId
+    group by c.nom
+    having COUNT(co.dateCommande) > 5
+)
+SELECT nom , cnt ,le_min,le_max, DATEDIFF(le_max, le_min) as la_diff
+    from cli
+    where DATEDIFF( CURDATE() , le_min) >=  1095
+
+
+-- 22 
+WITH ventes_par_trimestre AS (
+    SELECT 
+        YEAR(co.dateCommande) AS annee,
+        QUARTER(co.dateCommande) AS trimestre,
+        COUNT(DISTINCT co.commandeId) AS nb_commandes,
+        SUM(dc.quantite * p.prix) AS montant_total
+    FROM commandes co
+    INNER JOIN detailscommandes dc ON co.commandeId = dc.commandeId
+    INNER JOIN produits p ON dc.produitId = p.produitId
+    GROUP BY YEAR(co.dateCommande), QUARTER(co.dateCommande)
+),
+
+ventes_avec_precedent AS (
+    SELECT 
+        annee,
+        trimestre,
+        nb_commandes,
+        montant_total,
+        LAG(montant_total) OVER (ORDER BY annee, trimestre desc) AS montant_trimestre_precedent,
+        LAG(nb_commandes) OVER (ORDER BY annee, trimestre desc) AS nb_commandes_precedent
+    FROM ventes_par_trimestre
+)
+
+SELECT 
+    annee,
+    trimestre,
+    nb_commandes,
+    montant_total AS montant_total_trimestre,
+    montant_trimestre_precedent AS montant_trimestre_precedent,
+    montant_total - montant_trimestre_precedent AS difference_montant,
+    ((montant_total - montant_trimestre_precedent) / montant_trimestre_precedent) * 100 AS evolution_pourcentage,
+    nb_commandes - nb_commandes_precedent AS difference_nb_commandes
+FROM ventes_avec_precedent
+ORDER BY annee, trimestre desc;
+
+-- 23
+-- Donnez la requête SQL qui permet d’obtenir une segmentation des clients (les clients avec
+-- plus de 10 commandes sont client « Or », avec plus de 5 commandes « Argent », sinon
+-- « Bronze ») : segment client (Or, Argent ou Bronze), nombre de clients dans le segment,
+-- nombre moyen de commandes, montant moyen commandé par segment client
+
+WITH commandes_par_client AS (
+    SELECT 
+        c.clientId,
+        c.nom,
+        COUNT(co.commandeId) AS nb_commandes,
+        SUM(dc.quantite * p.prix) AS montant_total
+    FROM clients c
+    LEFT JOIN commandes co ON c.clientId = co.clientId
+    LEFT JOIN detailscommandes dc ON co.commandeId = dc.commandeId
+    LEFT JOIN produits p ON dc.produitId = p.produitId
+    GROUP BY c.clientId, c.nom
+),
+
+segmentation AS (
+    SELECT 
+        clientId,
+        nom,
+        nb_commandes,
+        montant_total,
+        CASE 
+            WHEN nb_commandes > 10 THEN 'Or'
+            WHEN nb_commandes > 5 THEN 'Argent'
+            ELSE 'Bronze'
+        END AS segment
+    FROM commandes_par_client
+)
+
+SELECT 
+    segment,
+    COUNT(*) AS nombre_clients,
+    ROUND(AVG(nb_commandes), 2) AS moyenne_commandes,
+    ROUND(AVG(montant_total), 2) AS montant_moyen
+FROM segmentation
+GROUP BY segment
+ORDER BY 
+    CASE segment
+        WHEN 'Or' THEN 1
+        WHEN 'Argent' THEN 2
+        WHEN 'Bronze' THEN 3
+    END;
 
